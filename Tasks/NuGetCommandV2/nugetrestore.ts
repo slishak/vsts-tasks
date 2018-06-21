@@ -70,12 +70,13 @@ export async function run(nuGetPath: string): Promise<void> {
         // Discovering NuGet quirks based on the version
         tl.debug('Getting NuGet quirks');
         const quirks = await ngToolRunner.getNuGetQuirksAsync(nuGetPath);
-        let credProviderPath = nutil.locateCredentialProvider(quirks);
-
+        let credProviderPath: string = nutil.locateCredentialProvider(quirks);
+        
         // Clauses ordered in this way to avoid short-circuit evaluation, so the debug info printed by the functions
         // is unconditionally displayed
-        const useCredProvider = ngToolRunner.isCredentialProviderEnabled(quirks) && credProviderPath;
-        const useCredConfig = ngToolRunner.isCredentialConfigEnabled(quirks) && !useCredProvider;
+        const useV1CredProvider: string = ngToolRunner.isCredentialProviderV1Enabled(quirks) ? credProviderPath : null;
+        const useV2CredProvider: string = ngToolRunner.isCredentialProviderV2Enabled(quirks) ? credProviderPath : null;
+        const useCredConfig = ngToolRunner.isCredentialConfigEnabled(quirks) && !useV1CredProvider && !useV2CredProvider;
 
         // Setting up auth-related variables
         tl.debug('Setting up auth');
@@ -91,16 +92,14 @@ export async function run(nuGetPath: string): Promise<void> {
         }
         let accessToken = auth.getSystemAccessToken();
         let externalAuthArr: auth.ExternalAuthInfo[] = commandHelper.GetExternalAuthInfoArray("externalEndpoints");
-        const authInfo = new auth.NuGetExtendedAuthInfo(new auth.InternalAuthInfo(urlPrefixes, accessToken, useCredProvider, useCredConfig), externalAuthArr);
-        const useCredProviderV2: boolean = quirks.hasQuirk(NuGetQuirkName.V2CredentialProvider);
+        const authInfo = new auth.NuGetExtendedAuthInfo(
+            new auth.InternalAuthInfo(urlPrefixes, accessToken, (useV1CredProvider || useV2CredProvider), useCredConfig),
+            externalAuthArr);
+
         let environmentSettings: ngToolRunner.NuGetEnvironmentSettings = {
-            credProviderFolder: useCredProvider 
-                ? useCredProviderV2
-                    ? credProviderPath 
-                    : path.dirname(credProviderPath)
-                : null,
-            extensionsDisabled: true,
-            quirks
+            credProviderFolder: useV1CredProvider,
+            V2CredProviderPath: useV2CredProvider,
+            extensionsDisabled: true
         };
 
         // Setting up sources, either from provided config file or from feed selection

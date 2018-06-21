@@ -40,8 +40,9 @@ export async function run(nuGetPath: string): Promise<void> {
         // Clauses ordered in this way to avoid short-circuit evaluation, so the debug info printed by the functions
         // is unconditionally displayed
         const quirks = await ngToolRunner.getNuGetQuirksAsync(nuGetPath);
-        let credProviderPath = nutil.locateCredentialProvider(quirks);
-        const useCredProvider = ngToolRunner.isCredentialProviderEnabled(quirks) && credProviderPath;
+        const credProviderPath: string = nutil.locateCredentialProvider(quirks);
+        const useV1CredProvider: string = ngToolRunner.isCredentialProviderV1Enabled(quirks) ? credProviderPath : null;
+        const useV2CredProvider: string = ngToolRunner.isCredentialProviderV2Enabled(quirks) ? credProviderPath : null;
         // useCredConfig not placed here: This task will only support NuGet versions >= 3.5.0 which support credProvider both hosted and OnPrem
 
         let accessToken = auth.getSystemAccessToken();
@@ -56,17 +57,12 @@ export async function run(nuGetPath: string): Promise<void> {
             urlPrefixes = urlPrefixes.concat(testPrefixes.split(";"));
             tl.debug(`All URL prefixes: ${urlPrefixes}`);
         }
-        let authInfo = new auth.NuGetExtendedAuthInfo(new auth.InternalAuthInfo(urlPrefixes, accessToken, useCredProvider, false), []);
-        
-        const useCredProviderV2: boolean = quirks.hasQuirk(NuGetQuirkName.V2CredentialProvider);
+        let authInfo = new auth.NuGetExtendedAuthInfo(new auth.InternalAuthInfo(urlPrefixes, accessToken, (useV1CredProvider || useV2CredProvider), false), []);
+
         let environmentSettings: ngToolRunner.NuGetEnvironmentSettings = {
-            credProviderFolder: useCredProvider 
-                ? useCredProviderV2
-                    ? credProviderPath 
-                    : path.dirname(credProviderPath)
-                : null,
-            extensionsDisabled: true,
-            quirks
+            credProviderFolder: useV1CredProvider,
+            V2CredProviderPath: useV2CredProvider,
+            extensionsDisabled: true
         };
 
         let executionOptions = new NuGetExecutionOptions(

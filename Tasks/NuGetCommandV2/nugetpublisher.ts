@@ -99,24 +99,22 @@ export async function run(nuGetPath: string): Promise<void> {
         // Setting up auth info
         let accessToken = auth.getSystemAccessToken();
         const quirks = await ngToolRunner.getNuGetQuirksAsync(nuGetPath);
-        let credProviderPath = nutil.locateCredentialProvider(quirks);
+        const credProviderPath: string = nutil.locateCredentialProvider(quirks);
+
         // Clauses ordered in this way to avoid short-circuit evaluation, so the debug info printed by the functions
         // is unconditionally displayed
-        let useCredProvider = ngToolRunner.isCredentialProviderEnabled(quirks) && credProviderPath;
-        let useCredConfig = ngToolRunner.isCredentialConfigEnabled(quirks) && !useCredProvider;
+        const useV1CredProvider: string = ngToolRunner.isCredentialProviderV1Enabled(quirks) ? credProviderPath : null;
+        const useV2CredProvider: string = ngToolRunner.isCredentialProviderV2Enabled(quirks) ? credProviderPath : null;
+        let useCredConfig = ngToolRunner.isCredentialConfigEnabled(quirks) && !useV1CredProvider && !useV2CredProvider;
 
-        const internalAuthInfo = new auth.InternalAuthInfo(urlPrefixes, accessToken, useCredProvider, useCredConfig);
+        const internalAuthInfo = new auth.InternalAuthInfo(urlPrefixes, accessToken, (useV1CredProvider || useV2CredProvider), useCredConfig);
 
-        const useCredProviderV2: boolean = quirks.hasQuirk(NuGetQuirkName.V2CredentialProvider);
         let environmentSettings: ngToolRunner.NuGetEnvironmentSettings = {
-            credProviderFolder: useCredProvider 
-                ? useCredProviderV2
-                    ? credProviderPath 
-                    : path.dirname(credProviderPath)
-                : null,
-            extensionsDisabled: true,
-            quirks
+            credProviderFolder: useV1CredProvider,
+            V2CredProviderPath: useV2CredProvider,
+            extensionsDisabled: true
         };
+        
         let configFile = null;
         let apiKey: string;
         let credCleanup = () => { return; };

@@ -145,11 +145,8 @@ export async function run(nuGetPath: string): Promise<void> {
             props = props.concat(propertiesInput.split(";"));
         }
 
-        const quirks = await ngToolRunner.getNuGetQuirksAsync(nuGetPath);
         let environmentSettings: ngToolRunner.NuGetEnvironmentSettings = {
-            credProviderFolder: null,
-            extensionsDisabled: true,
-            quirks
+            extensionsDisabled: true
         };
 
         let packOptions = new PackOptions(
